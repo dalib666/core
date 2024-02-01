@@ -46,5 +46,9 @@
         }
       }
     }
-  }
+  },
+  "mounts": [
+    // Custom configuration directory
+    "source=${localEnv:USERPROFILE}\\OneDrive\\Dalibor\\HomeProjekty\\DockerData\\config\\custom_components,target=${containerWorkspaceFolder}/config/custom_components,type=bind"
+  ]
 }
