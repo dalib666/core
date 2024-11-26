@@ -8,6 +8,7 @@
   // Port 5683 udp is used by Shelly integration
   "appPort": ["8123:8123", "5683:5683/udp"],
   "runArgs": ["-e", "GIT_EDITOR=code --wait"],
+  "autoRebuild": false // do not run auto build of docker during open of project
   "customizations": {
     "vscode": {
       "extensions": [
@@ -49,6 +50,6 @@
   },
   "mounts": [
     // Custom configuration directory
-    "source=${localEnv:USERPROFILE}\\OneDrive\\Dalibor\\HomeProjekty\\DockerData\\config\\custom_components,target=${containerWorkspaceFolder}/config/custom_components,type=bind"
+    "source=c:\\Dalibor\\HomeProjekty\\HomeAsisstant\\fv_ems\\custom_components\\fv_ems,target=${containerWorkspaceFolder}/config/custom_components/fv_ems,type=bind"
   ]
 }
