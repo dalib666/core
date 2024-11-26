@@ -1,11 +1,10 @@
 """Tests for the Tedee Sensors."""
 
-
 from datetime import timedelta
 from unittest.mock import MagicMock
 
+from aiotedee import TedeeLock
 from freezegun.api import FrozenDateTimeFactory
-from pytedee_async import TedeeLock
 import pytest
 from syrupy import SnapshotAssertion
 

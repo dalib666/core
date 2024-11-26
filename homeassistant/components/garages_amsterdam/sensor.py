@@ -1,42 +1,36 @@
 """Sensor platform for Garages Amsterdam."""
+
 from __future__ import annotations
 
 from homeassistant.components.sensor import SensorEntity
-from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
-from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
-from . import get_coordinator
+from . import GaragesAmsterdamConfigEntry
+from .coordinator import GaragesAmsterdamDataUpdateCoordinator
 from .entity import GaragesAmsterdamEntity
 
 SENSORS = {
-    "free_space_short": "mdi:car",
-    "free_space_long": "mdi:car",
-    "short_capacity": "mdi:car",
-    "long_capacity": "mdi:car",
+    "free_space_short",
+    "free_space_long",
+    "short_capacity",
+    "long_capacity",
 }
 
 
 async def async_setup_entry(
     hass: HomeAssistant,
-    config_entry: ConfigEntry,
+    entry: GaragesAmsterdamConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Defer sensor setup to the shared sensor module."""
-    coordinator = await get_coordinator(hass)
+    coordinator = entry.runtime_data
 
-    entities: list[GaragesAmsterdamSensor] = []
-
-    for info_type in SENSORS:
-        if getattr(coordinator.data[config_entry.data["garage_name"]], info_type) != "":
-            entities.append(
-                GaragesAmsterdamSensor(
-                    coordinator, config_entry.data["garage_name"], info_type
-                )
-            )
-
-    async_add_entities(entities)
+    async_add_entities(
+        GaragesAmsterdamSensor(coordinator, entry.data["garage_name"], info_type)
+        for info_type in SENSORS
+        if getattr(coordinator.data[entry.data["garage_name"]], info_type) is not None
+    )
 
 
 class GaragesAmsterdamSensor(GaragesAmsterdamEntity, SensorEntity):
@@ -45,12 +39,14 @@ class GaragesAmsterdamSensor(GaragesAmsterdamEntity, SensorEntity):
     _attr_native_unit_of_measurement = "cars"
 
     def __init__(
-        self, coordinator: DataUpdateCoordinator, garage_name: str, info_type: str
+        self,
+        coordinator: GaragesAmsterdamDataUpdateCoordinator,
+        garage_name: str,
+        info_type: str,
     ) -> None:
         """Initialize garages amsterdam sensor."""
         super().__init__(coordinator, garage_name, info_type)
         self._attr_translation_key = info_type
-        self._attr_icon = SENSORS[info_type]
 
     @property
     def available(self) -> bool:

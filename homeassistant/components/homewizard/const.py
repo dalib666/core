@@ -1,11 +1,12 @@
 """Constants for the Homewizard integration."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import timedelta
 import logging
 
-from homewizard_energy.models import Data, Device, State, System
+from homewizard_energy.v1.models import Data, Device, State, System
 
 from homeassistant.const import Platform
 

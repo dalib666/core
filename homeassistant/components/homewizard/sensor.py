@@ -1,11 +1,12 @@
 """Creates HomeWizard sensor entities."""
+
 from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Final
 
-from homewizard_energy.models import Data, ExternalDevice
+from homewizard_energy.v1.models import Data, ExternalDevice
 
 from homeassistant.components.sensor import (
     DEVICE_CLASS_UNITS,
@@ -14,25 +15,25 @@ from homeassistant.components.sensor import (
     SensorEntityDescription,
     SensorStateClass,
 )
-from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import (
     ATTR_VIA_DEVICE,
     PERCENTAGE,
     EntityCategory,
-    Platform,
+    UnitOfApparentPower,
     UnitOfElectricCurrent,
     UnitOfElectricPotential,
     UnitOfEnergy,
     UnitOfFrequency,
     UnitOfPower,
+    UnitOfReactivePower,
     UnitOfVolume,
 )
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.typing import StateType
 
+from . import HomeWizardConfigEntry
 from .const import DOMAIN
 from .coordinator import HWEnergyDeviceUpdateCoordinator
 from .entity import HomeWizardEntity
@@ -55,6 +56,11 @@ class HomeWizardExternalSensorEntityDescription(SensorEntityDescription):
 
     suggested_device_class: SensorDeviceClass
     device_name: str
+
+
+def to_percentage(value: float | None) -> float | None:
+    """Convert 0..1 value to percentage when value is not None."""
+    return value * 100 if value is not None else None
 
 
 SENSORS: Final[tuple[HomeWizardSensorEntityDescription, ...]] = (
@@ -219,7 +225,6 @@ SENSORS: Final[tuple[HomeWizardSensorEntityDescription, ...]] = (
     ),
     HomeWizardSensorEntityDescription(
         key="active_power_w",
-        translation_key="active_power_w",
         native_unit_of_measurement=UnitOfPower.WATT,
         device_class=SensorDeviceClass.POWER,
         state_class=SensorStateClass.MEASUREMENT,
@@ -261,6 +266,15 @@ SENSORS: Final[tuple[HomeWizardSensorEntityDescription, ...]] = (
         value_fn=lambda data: data.active_power_l3_w,
     ),
     HomeWizardSensorEntityDescription(
+        key="active_voltage_v",
+        native_unit_of_measurement=UnitOfElectricPotential.VOLT,
+        device_class=SensorDeviceClass.VOLTAGE,
+        state_class=SensorStateClass.MEASUREMENT,
+        entity_registry_enabled_default=False,
+        has_fn=lambda data: data.active_voltage_v is not None,
+        value_fn=lambda data: data.active_voltage_v,
+    ),
+    HomeWizardSensorEntityDescription(
         key="active_voltage_l1_v",
         translation_key="active_voltage_phase_v",
         translation_placeholders={"phase": "1"},
@@ -292,6 +306,15 @@ SENSORS: Final[tuple[HomeWizardSensorEntityDescription, ...]] = (
         entity_registry_enabled_default=False,
         has_fn=lambda data: data.active_voltage_l3_v is not None,
         value_fn=lambda data: data.active_voltage_l3_v,
+    ),
+    HomeWizardSensorEntityDescription(
+        key="active_current_a",
+        native_unit_of_measurement=UnitOfElectricCurrent.AMPERE,
+        device_class=SensorDeviceClass.CURRENT,
+        state_class=SensorStateClass.MEASUREMENT,
+        entity_registry_enabled_default=False,
+        has_fn=lambda data: data.active_current_a is not None,
+        value_fn=lambda data: data.active_current_a,
     ),
     HomeWizardSensorEntityDescription(
         key="active_current_l1_a",
@@ -328,13 +351,138 @@ SENSORS: Final[tuple[HomeWizardSensorEntityDescription, ...]] = (
     ),
     HomeWizardSensorEntityDescription(
         key="active_frequency_hz",
-        translation_key="active_frequency_hz",
         native_unit_of_measurement=UnitOfFrequency.HERTZ,
         device_class=SensorDeviceClass.FREQUENCY,
         state_class=SensorStateClass.MEASUREMENT,
         entity_registry_enabled_default=False,
         has_fn=lambda data: data.active_frequency_hz is not None,
         value_fn=lambda data: data.active_frequency_hz,
+    ),
+    HomeWizardSensorEntityDescription(
+        key="active_apparent_power_va",
+        native_unit_of_measurement=UnitOfApparentPower.VOLT_AMPERE,
+        device_class=SensorDeviceClass.APPARENT_POWER,
+        state_class=SensorStateClass.MEASUREMENT,
+        entity_registry_enabled_default=False,
+        has_fn=lambda data: data.active_apparent_power_va is not None,
+        value_fn=lambda data: data.active_apparent_power_va,
+    ),
+    HomeWizardSensorEntityDescription(
+        key="active_apparent_power_l1_va",
+        translation_key="active_apparent_power_phase_va",
+        translation_placeholders={"phase": "1"},
+        native_unit_of_measurement=UnitOfApparentPower.VOLT_AMPERE,
+        device_class=SensorDeviceClass.APPARENT_POWER,
+        state_class=SensorStateClass.MEASUREMENT,
+        entity_registry_enabled_default=False,
+        has_fn=lambda data: data.active_apparent_power_l1_va is not None,
+        value_fn=lambda data: data.active_apparent_power_l1_va,
+    ),
+    HomeWizardSensorEntityDescription(
+        key="active_apparent_power_l2_va",
+        translation_key="active_apparent_power_phase_va",
+        translation_placeholders={"phase": "2"},
+        native_unit_of_measurement=UnitOfApparentPower.VOLT_AMPERE,
+        device_class=SensorDeviceClass.APPARENT_POWER,
+        state_class=SensorStateClass.MEASUREMENT,
+        entity_registry_enabled_default=False,
+        has_fn=lambda data: data.active_apparent_power_l2_va is not None,
+        value_fn=lambda data: data.active_apparent_power_l2_va,
+    ),
+    HomeWizardSensorEntityDescription(
+        key="active_apparent_power_l3_va",
+        translation_key="active_apparent_power_phase_va",
+        translation_placeholders={"phase": "3"},
+        native_unit_of_measurement=UnitOfApparentPower.VOLT_AMPERE,
+        device_class=SensorDeviceClass.APPARENT_POWER,
+        state_class=SensorStateClass.MEASUREMENT,
+        entity_registry_enabled_default=False,
+        has_fn=lambda data: data.active_apparent_power_l3_va is not None,
+        value_fn=lambda data: data.active_apparent_power_l3_va,
+    ),
+    HomeWizardSensorEntityDescription(
+        key="active_reactive_power_var",
+        native_unit_of_measurement=UnitOfReactivePower.VOLT_AMPERE_REACTIVE,
+        device_class=SensorDeviceClass.REACTIVE_POWER,
+        state_class=SensorStateClass.MEASUREMENT,
+        entity_registry_enabled_default=False,
+        has_fn=lambda data: data.active_reactive_power_var is not None,
+        value_fn=lambda data: data.active_reactive_power_var,
+    ),
+    HomeWizardSensorEntityDescription(
+        key="active_reactive_power_l1_var",
+        translation_key="active_reactive_power_phase_var",
+        translation_placeholders={"phase": "1"},
+        native_unit_of_measurement=UnitOfReactivePower.VOLT_AMPERE_REACTIVE,
+        device_class=SensorDeviceClass.REACTIVE_POWER,
+        state_class=SensorStateClass.MEASUREMENT,
+        entity_registry_enabled_default=False,
+        has_fn=lambda data: data.active_reactive_power_l1_var is not None,
+        value_fn=lambda data: data.active_reactive_power_l1_var,
+    ),
+    HomeWizardSensorEntityDescription(
+        key="active_reactive_power_l2_var",
+        translation_key="active_reactive_power_phase_var",
+        translation_placeholders={"phase": "2"},
+        native_unit_of_measurement=UnitOfReactivePower.VOLT_AMPERE_REACTIVE,
+        device_class=SensorDeviceClass.REACTIVE_POWER,
+        state_class=SensorStateClass.MEASUREMENT,
+        entity_registry_enabled_default=False,
+        has_fn=lambda data: data.active_reactive_power_l2_var is not None,
+        value_fn=lambda data: data.active_reactive_power_l2_var,
+    ),
+    HomeWizardSensorEntityDescription(
+        key="active_reactive_power_l3_var",
+        translation_key="active_reactive_power_phase_var",
+        translation_placeholders={"phase": "3"},
+        native_unit_of_measurement=UnitOfReactivePower.VOLT_AMPERE_REACTIVE,
+        device_class=SensorDeviceClass.REACTIVE_POWER,
+        state_class=SensorStateClass.MEASUREMENT,
+        entity_registry_enabled_default=False,
+        has_fn=lambda data: data.active_reactive_power_l3_var is not None,
+        value_fn=lambda data: data.active_reactive_power_l3_var,
+    ),
+    HomeWizardSensorEntityDescription(
+        key="active_power_factor",
+        native_unit_of_measurement=PERCENTAGE,
+        device_class=SensorDeviceClass.POWER_FACTOR,
+        state_class=SensorStateClass.MEASUREMENT,
+        entity_registry_enabled_default=False,
+        has_fn=lambda data: data.active_power_factor is not None,
+        value_fn=lambda data: to_percentage(data.active_power_factor),
+    ),
+    HomeWizardSensorEntityDescription(
+        key="active_power_factor_l1",
+        translation_key="active_power_factor_phase",
+        translation_placeholders={"phase": "1"},
+        native_unit_of_measurement=PERCENTAGE,
+        device_class=SensorDeviceClass.POWER_FACTOR,
+        state_class=SensorStateClass.MEASUREMENT,
+        entity_registry_enabled_default=False,
+        has_fn=lambda data: data.active_power_factor_l1 is not None,
+        value_fn=lambda data: to_percentage(data.active_power_factor_l1),
+    ),
+    HomeWizardSensorEntityDescription(
+        key="active_power_factor_l2",
+        translation_key="active_power_factor_phase",
+        translation_placeholders={"phase": "2"},
+        native_unit_of_measurement=PERCENTAGE,
+        device_class=SensorDeviceClass.POWER_FACTOR,
+        state_class=SensorStateClass.MEASUREMENT,
+        entity_registry_enabled_default=False,
+        has_fn=lambda data: data.active_power_factor_l2 is not None,
+        value_fn=lambda data: to_percentage(data.active_power_factor_l2),
+    ),
+    HomeWizardSensorEntityDescription(
+        key="active_power_factor_l3",
+        translation_key="active_power_factor_phase",
+        translation_placeholders={"phase": "3"},
+        native_unit_of_measurement=PERCENTAGE,
+        device_class=SensorDeviceClass.POWER_FACTOR,
+        state_class=SensorStateClass.MEASUREMENT,
+        entity_registry_enabled_default=False,
+        has_fn=lambda data: data.active_power_factor_l3 is not None,
+        value_fn=lambda data: to_percentage(data.active_power_factor_l3),
     ),
     HomeWizardSensorEntityDescription(
         key="voltage_sag_l1_count",
@@ -437,35 +585,30 @@ SENSORS: Final[tuple[HomeWizardSensorEntityDescription, ...]] = (
 EXTERNAL_SENSORS = {
     ExternalDevice.DeviceType.GAS_METER: HomeWizardExternalSensorEntityDescription(
         key="gas_meter",
-        translation_key="total_gas_m3",
         suggested_device_class=SensorDeviceClass.GAS,
         state_class=SensorStateClass.TOTAL_INCREASING,
         device_name="Gas meter",
     ),
     ExternalDevice.DeviceType.HEAT_METER: HomeWizardExternalSensorEntityDescription(
         key="heat_meter",
-        translation_key="total_energy_gj",
         suggested_device_class=SensorDeviceClass.ENERGY,
         state_class=SensorStateClass.TOTAL_INCREASING,
         device_name="Heat meter",
     ),
     ExternalDevice.DeviceType.WARM_WATER_METER: HomeWizardExternalSensorEntityDescription(
         key="warm_water_meter",
-        translation_key="total_liter_m3",
         suggested_device_class=SensorDeviceClass.WATER,
         state_class=SensorStateClass.TOTAL_INCREASING,
         device_name="Warm water meter",
     ),
     ExternalDevice.DeviceType.WATER_METER: HomeWizardExternalSensorEntityDescription(
         key="water_meter",
-        translation_key="total_liter_m3",
         suggested_device_class=SensorDeviceClass.WATER,
         state_class=SensorStateClass.TOTAL_INCREASING,
         device_name="Water meter",
     ),
     ExternalDevice.DeviceType.INLET_HEAT_METER: HomeWizardExternalSensorEntityDescription(
         key="inlet_heat_meter",
-        translation_key="total_energy_gj",
         suggested_device_class=SensorDeviceClass.ENERGY,
         state_class=SensorStateClass.TOTAL_INCREASING,
         device_name="Inlet heat meter",
@@ -474,43 +617,30 @@ EXTERNAL_SENSORS = {
 
 
 async def async_setup_entry(
-    hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
+    hass: HomeAssistant,
+    entry: HomeWizardConfigEntry,
+    async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Initialize sensors."""
-    coordinator: HWEnergyDeviceUpdateCoordinator = hass.data[DOMAIN][entry.entry_id]
 
-    # Migrate original gas meter sensor to ExternalDevice
-    ent_reg = er.async_get(hass)
-
-    if (
-        entity_id := ent_reg.async_get_entity_id(
-            Platform.SENSOR, DOMAIN, f"{entry.unique_id}_total_gas_m3"
-        )
-    ) and coordinator.data.data.gas_unique_id is not None:
-        ent_reg.async_update_entity(
-            entity_id,
-            new_unique_id=f"{DOMAIN}_{coordinator.data.data.gas_unique_id}",
-        )
-
-    # Remove old gas_unique_id sensor
-    if entity_id := ent_reg.async_get_entity_id(
-        Platform.SENSOR, DOMAIN, f"{entry.unique_id}_gas_unique_id"
-    ):
-        ent_reg.async_remove(entity_id)
+    data = entry.runtime_data.data.data
 
     # Initialize default sensors
     entities: list = [
-        HomeWizardSensorEntity(coordinator, description)
+        HomeWizardSensorEntity(entry.runtime_data, description)
         for description in SENSORS
-        if description.has_fn(coordinator.data.data)
+        if description.has_fn(data)
     ]
 
     # Initialize external devices
-    if coordinator.data.data.external_devices is not None:
-        for unique_id, device in coordinator.data.data.external_devices.items():
+    if data.external_devices is not None:
+        for unique_id, device in data.external_devices.items():
             if description := EXTERNAL_SENSORS.get(device.meter_type):
+                # Add external device
                 entities.append(
-                    HomeWizardExternalSensorEntity(coordinator, description, unique_id)
+                    HomeWizardExternalSensorEntity(
+                        entry.runtime_data, description, unique_id
+                    )
                 )
 
     async_add_entities(entities)
