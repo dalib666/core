@@ -161,7 +161,7 @@ aio-geojson-usgs-earthquakes==0.3
 aio-georss-gdacs==0.10
 
 # homeassistant.components.acaia
-aioacaia==0.1.9
+aioacaia==0.1.10
 
 # homeassistant.components.airq
 aioairq==0.4.3
@@ -1686,7 +1686,7 @@ pymonoprice==0.4
 pymysensors==0.24.0
 
 # homeassistant.components.iron_os
-pynecil==0.2.1
+pynecil==1.0.1
 
 # homeassistant.components.netgear
 pynetgear==0.10.10
